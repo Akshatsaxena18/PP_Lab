@@ -1,101 +1,31 @@
-// sort an array of n elements using seq and merge sort
 #include <stdio.h>
-#include <omp.h>
+#include <mpi.h>
+#include <string.h>
 #include <stdlib.h>
-void merge(int a[], int l, int mid, int h)
+void main(int argc, char *argv[])
 {
-    int n1 = mid - l + 1;
-    int n2 = h - mid;
+    char outmsg[100] = "welcome to ise!";
+    char inmsg[100];
+    int numtasks, rank, dest, source, rc, count, tag = 1;
+    MPI_Status stat;
 
-    int arr1[n1], arr2[n2];
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    for (int i = 0; i < n1; i++)
-        arr1[i] = a[l + i];
-    for (int i = 0; i < n2; i++)
-        arr2[i] = a[mid + 1 + i];
-
-    int i = 0, j = 0, k = l;
-
-    while (i < n1 && j < n2)
+    if (rank == 0)
     {
-        if (arr1[i] <= arr2[j])
-        {
-            a[k++] = arr1[i++];
-        }
-        else
-        {
-            a[k++] = arr2[j++];
-        }
+        dest = 1; // setting dest as rank 1
+        // source=1;
+        rc = MPI_Send(&outmsg, strlen(outmsg), MPI_CHAR, dest, tag, MPI_COMM_WORLD);
     }
-
-    while (i < n1)
+    else if (rank == 1)
     {
-        a[k++] = arr1[i++];
+        // dest = 0;
+        source = 0; // mentioning source as rank 0
+        rc = MPI_Recv(&inmsg, strlen(outmsg), MPI_CHAR, source, tag, MPI_COMM_WORLD, &stat);
     }
-    while (j < n2)
-    {
-        a[k++] = arr2[j++];
-    }
-}
-
-void mergesortParallel(int a[], int l, int h)
-{
-    if (l < h)
-    {
-        int mid = l + (h - l) / 2;
-
-#pragma omp parallel sections
-        {
-#pragma omp section
-            mergesortParallel(a, l, mid);
-
-#pragma omp section
-            mergesortParallel(a, mid + 1, h);
-        }
-        merge(a, l, mid, h);
-    }
-}
-
-void mergesortSerial(int a[], int l, int h)
-{
-    if (l < h)
-    {
-        int mid = l + (h - l) / 2;
-
-        {
-
-            mergesortSerial(a, l, mid);
-
-            mergesortSerial(a, mid + 1, h);
-        }
-        merge(a, l, mid, h);
-    }
-}
-
-void main()
-{
-    int *a, num, i;
-    printf("enter number:");
-    scanf("%d", &num);
-    a = (int *)malloc(sizeof(int) * num);
-    printf("array before sorting");
-    for (i = 0; i < num; i++)
-    {
-        a[i] = rand() % 100;
-        printf("%d ", a[i]);
-    }
-    double start = omp_get_wtime();
-    mergesortSerial(a, 0, num - 1);
-    double end = omp_get_wtime();
-    printf("\narray after sorting\n");
-    for (i = 0; i < num; i++)
-        printf("%d ", a[i]);
-    double val = end - start;
-    printf("\nTime for serial is:%f\n", val);
-
-    start = omp_get_wtime();
-    mergesortParallel(a, 0, num - 1);
-    end = omp_get_wtime();
-    val = end - start;
-    printf("Time for parallel execution is %f\n", val);
+    rc = MPI_Get_count(&stat, MPI_CHAR, &count);
+    printf("TASK %d, received %d char(s) task from %d with tag %d and msg is %s\n", rank, count, stat.MPI_SOURCE, stat.MPI_TAG, inmsg);
+    MPI_Finalize();
 }

@@ -1,43 +1,35 @@
-// estimation of pi
 #include <stdio.h>
-#include <omp.h>
+#include <string.h>
 #include <stdlib.h>
-#include <math.h>
+#include <mpi.h>
 
-#define num_steps 1000000 // infinity assumption
-// assuming 8 threads - so threads array is having 8 length
-void main()
+void main(int c, char *v[])
 {
-    float pi = 0;
-    // serial
-    double start = omp_get_wtime();
-    for (int k = 0; k < num_steps; k++)
+    int rank, size, root = 0, dest = 1, source = 0, tag1 = 1, tag2 = 2;
+    int out = 77, in;
+    MPI_Init(&c, &v);
+    MPI_Status stat;
+    MPI_Request req;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // no deadlock
+    if (rank == 0)
     {
-        pi += pow(-1, k) / (2 * k + 1);
+        dest = 1;
+        source = 1;
+        MPI_Send(&out, 1, MPI_INT, dest, tag1, MPI_COMM_WORLD);
+        MPI_Recv(&in, 1, MPI_INT, source, tag2, MPI_COMM_WORLD, &stat);
     }
-    pi = 4 * pi;
-    double end = omp_get_wtime();
-    double time = end - start;
-    printf("value of pi in serial : %f with time : %f\n", pi, time);
-
-    // parallel
-    pi = 0;
-    start = omp_get_wtime();
-    float thread[8];
-#pragma omp parallel for num_threads(8)
-    for (int k = 0; k < num_steps; k++)
+    else if (rank == 1)
     {
-        // use critical bcoz many threads might access it at same time
-        // or sepereate the addition of pi directly and store seperately and then add at last
-        int t = omp_get_thread_num();
-        thread[t] += pow(-1, k) / (2 * k + 1);
+        dest = 0;
+        source = 0;
+        MPI_Recv(&in, 1, MPI_INT, source, tag1, MPI_COMM_WORLD, &stat);
+        MPI_Send(&out, 1, MPI_INT, dest, tag2, MPI_COMM_WORLD);
     }
-    for (int i = 0; i < 8; i++)
-    {
-        pi += thread[i];
-    }
-    pi = 4 * pi;
-    end = omp_get_wtime();
-    time = end - start;
-    printf("value of pi in parallel : %f with time : %f\n", pi, time);
+    printf("rank %d msg %d with tag %d from task %d\n", rank, in, stat.MPI_TAG, stat.MPI_SOURCE);
+    MPI_Finalize();
 }
+/*
+For deadlock condition
+interchange the tags in else if part only
+*/

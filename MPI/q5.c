@@ -1,49 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <omp.h>
+#include <mpi.h>
 
-// primes
-int isprime(int n)
+int isprime(int x)
 {
-    for (int i = 2; i <= n / 2; i++)
+    if (x == 0)
+        return 0;
+    if (x == 1)
+        return 0;
+    if (x == 2)
+        return 1;
+    if (x == 3)
+        return 1;
+    for (int i = 2; i <= x / 2; i++)
     {
-        if (n % i == 0)
+        if (x % i == 0)
             return 0;
     }
     return 1;
 }
 
-void main()
+void main(int argc, char *argv[])
 {
-    int i = 0, n = 1000, x = 2, primes[1100];
-    double start = omp_get_wtime();
-#pragma omp parallel
-    while (i < n)
+    int size, rank, root = 0;
+    int n;
+    printf("enter n\n");
+    scanf("%d", &n);
+    int *globaldata = malloc(n * sizeof(int));
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Bcast(&n, 1, MPI_INT, root, MPI_COMM_WORLD);
+    for (int i = 0; i < n; i++)
     {
-        if (isprime(x))
-        {
-            primes[i] = x;
-#pragma omp atomic
-            i++;
-        }
-#pragma omp atomic
-        x++;
+        globaldata[i] = i + 1;
     }
-    double end = omp_get_wtime();
-    printf("parallel exec time: %f\n", end - start);
+    int itern = (n / size) + 1;
+    printf("\nrank %d itern %d size %d n %d\n", rank, itern, size, n);
+    for (int i = (rank * itern); i < ((rank + 1) * itern); i++)
+    {
+        if (i > n)
+            break;
 
-    i = 0;
-    x = 2;
-    start = omp_get_wtime();
-    while (i < n)
-    {
-        if (isprime(x))
+        if (isprime(globaldata[i]))
         {
-            primes[i] = x;
-            i++;
+            printf("%d ", globaldata[i]);
         }
-        x++;
     }
-    end = omp_get_wtime();
-    printf("serial exec time: %f\n", end - start);
+    MPI_Finalize();
 }
