@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
-// compile using : gcc -fopenmp prgm6.c vect_addn_func.c
-// to run ./a.out in ubuntu and a in windows
+
 void vector_addn_parallel(int n, int *res_vector, int *vector_a, int *vector_b)
 {
 #pragma omp parallel for
